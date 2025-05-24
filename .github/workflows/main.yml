@@ -30,6 +30,6 @@ jobs:
           --document-name "AWS-RunShellScript" \
           --comment "Deploying app via SSM" \
           --parameters 'commands=[
-            "sudo -u ubuntu bash -c '\''cd /home/ubuntu/myapp && git pull origin main && npm install && pm2 restart app || pm2 start app.js --name app'\''"
+            "sudo -u ubuntu bash -c '\''cd /home/ubuntu/sermon_summary && git pull origin main && npm install && pm2 restart app || pm2 start app.js --name app'\''"
           ]' \
           --output text
