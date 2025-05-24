@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>시스템 모니터링</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8">시스템 모니터링</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- CPU 사용량 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">CPU 사용량</h2>
+                <canvas id="cpuChart"></canvas>
+            </div>
+
+            <!-- 메모리 사용량 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">메모리 사용량</h2>
+                <canvas id="memoryChart"></canvas>
+            </div>
+
+            <!-- 요청 수 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">요청 수</h2>
+                <canvas id="requestChart"></canvas>
+            </div>
+
+            <!-- 응답 시간 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">응답 시간</h2>
+                <canvas id="latencyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 현재 상태 -->
+        <div class="mt-6 bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">현재 상태</h2>
+            <div id="currentStatus" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- 상태 정보가 여기에 동적으로 추가됩니다 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 차트 초기화
+        const cpuChart = new Chart(document.getElementById('cpuChart'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'CPU 사용량 (%)',
+                    data: [],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        const memoryChart = new Chart(document.getElementById('memoryChart'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '메모리 사용량 (MB)',
+                    data: [],
+                    borderColor: 'rgb(153, 102, 255)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        const requestChart = new Chart(document.getElementById('requestChart'), {
+            type: 'bar',
+            data: {
+                labels: ['총 요청 수'],
+                datasets: [{
+                    label: '요청 수',
+                    data: [0],
+                    backgroundColor: 'rgb(255, 99, 132)'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        const latencyChart = new Chart(document.getElementById('latencyChart'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '응답 시간 (초)',
+                    data: [],
+                    borderColor: 'rgb(255, 159, 64)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // 데이터 업데이트 함수
+        async function updateData() {
+            try {
+                const response = await fetch('/status');
+                const data = await response.json();
+                
+                // 현재 시간
+                const now = new Date().toLocaleTimeString();
+                
+                // CPU 차트 업데이트
+                cpuChart.data.labels.push(now);
+                cpuChart.data.datasets[0].data.push(data.cpu_percent);
+                if (cpuChart.data.labels.length > 20) {
+                    cpuChart.data.labels.shift();
+                    cpuChart.data.datasets[0].data.shift();
+                }
+                cpuChart.update();
+
+                // 메모리 차트 업데이트
+                memoryChart.data.labels.push(now);
+                memoryChart.data.datasets[0].data.push(data.memory_info.rss / (1024 * 1024)); // MB로 변환
+                if (memoryChart.data.labels.length > 20) {
+                    memoryChart.data.labels.shift();
+                    memoryChart.data.datasets[0].data.shift();
+                }
+                memoryChart.update();
+
+                // 현재 상태 업데이트
+                document.getElementById('currentStatus').innerHTML = `
+                    <div class="p-4 bg-gray-50 rounded">
+                        <h3 class="font-semibold">CPU 사용량</h3>
+                        <p>${data.cpu_percent.toFixed(1)}%</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded">
+                        <h3 class="font-semibold">메모리 사용량</h3>
+                        <p>${(data.memory_info.rss / (1024 * 1024)).toFixed(1)} MB</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded">
+                        <h3 class="font-semibold">스레드 수</h3>
+                        <p>${data.num_threads}</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded">
+                        <h3 class="font-semibold">실행 시간</h3>
+                        <p>${Math.floor((Date.now() / 1000 - data.create_time) / 60)}분</p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error fetching status:', error);
+            }
+        }
+
+        // 주기적으로 데이터 업데이트
+        setInterval(updateData, 1000);
+        updateData(); // 초기 데이터 로드
+    </script>
+</body>
+</html> 
